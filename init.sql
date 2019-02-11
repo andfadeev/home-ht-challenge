@@ -1,19 +1,18 @@
 CREATE TABLE contracts (
-	id serial PRIMARY KEY,
+	id serial primary key,
 	title text
 );
 
-drop table payments;
 CREATE TABLE payments (
-	id serial PRIMARY KEY,
-	contract_id int not null REFERENCES contracts,
+	id serial primary key,
+	contract_id int not null references contracts,
 	description text,
-	"value" int NOT null,
-	"time" date not null,
+	"value" int not null,
+	"time" timestamp not null,
 	is_imported boolean default false,
-	created_at timestamp DEFAULT NOW(),
+	created_at timestamp default now(),
 	updated_at timestamp,
-	is_deleted boolean DEFAULT false
+	is_deleted boolean default false
 );
 
 insert into contracts(title) values ('Contract_1');

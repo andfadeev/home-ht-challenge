@@ -5,4 +5,4 @@ COPY project.clj /usr/src/app/
 RUN lein deps
 COPY . /usr/src/app
 EXPOSE 8080
-CMD ["lein", "run"]
+CMD ["lein", "trampoline", "run", "config/production.edn"]

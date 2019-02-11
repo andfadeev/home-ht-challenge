@@ -10,12 +10,6 @@
     (when password (.setPassword cfg password))
     cfg))
 
-(defn start-pool [config]
-  {:datasource (HikariDataSource. (make-config config))})
-
-(defn stop-pool [pool]
-  (.close (:datasource pool)))
-
 (defcomponent db
   []
   [config]
@@ -23,5 +17,5 @@
          (->> (HikariDataSource. (make-config (:db config)))
               (assoc this :datasource)))
   (stop [this]
-        (stop-pool this)
+        (.close (:datasource pool))
         this))

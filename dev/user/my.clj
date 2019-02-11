@@ -12,7 +12,7 @@
     (constantly
       (defcomponent/system
         [server/http-server]
-        {:file-config "config/production.edn"}))))
+        {:file-config "config/development.edn"}))))
 
 (defn start []
   (alter-var-root #'system component/start)

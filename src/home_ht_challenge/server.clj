@@ -14,8 +14,7 @@
              [db :as db]
              [schema :as schema]]
             [camel-snake-kebab.core :refer :all]
-            [camel-snake-kebab.extras :refer [transform-keys]])
-  (:import (java.time Instant)))
+            [camel-snake-kebab.extras :refer [transform-keys]]))
 
 (defn- response-format
   [response-body]
@@ -46,12 +45,12 @@
       (ok {:sum (sum-payments payments)
            :items payments}))))
 
-(defn add-payment
+(defn create-payment
   [{:keys [db]} req]
   (let [contractId (get-contract-id req)
         payment (-> (get-in req [:parameters :body])
                     (assoc :contract_id contractId))]
-    (ok (payments/add-payment db payment))))
+    (ok (payments/create-payment db payment))))
 
 (defn update-payment
   [{:keys [db]} req]
@@ -69,36 +68,33 @@
   [["/contract/:contractId"
     {:coercion coercion-schema/coercion
      :parameters {:path {:contractId s/Int}}}
+
     ["/payments"
      {:responses {200 {:body {:sum s/Int
                               :items [schema/payment]}}}
       :get {:summary "List payments for contractId and startDate <= time <= endDate"
-            :parameters {:query {:startDate Instant
-                                 :endDate Instant}}
+            :parameters {:query schema/list-payments-query}
             :handler (partial list-payments this)}}]
+
     ["/payment"
      {:responses {200 {:body schema/payment}}
       :post {:summary "Create new payment"
-             :parameters {:body {:description s/Str
-                                 :time Instant
-                                 :value s/Int}}
-             :handler (partial add-payment this)}}]]
+             :parameters {:body schema/create-payment-body}
+             :handler (partial create-payment this)}}]]
+
    ["/payment/:paymentId"
     {:coercion coercion-schema/coercion
      :parameters {:path {:paymentId s/Int}}}
+
     ["/delete"
      {:responses {200 {:body schema/payment}}
       :post {:summary "Mark payment as deleted"
              :handler (partial delete-payment this)}}]
+
     ["/update"
      {:responses {200 {:body schema/payment}}
       :post {:summary "Update payment"
-             :parameters {:body
-                          (s/conditional
-                            (complement empty?)
-                            {(s/optional-key :description) s/Str
-                             (s/optional-key :time) Instant
-                             (s/optional-key :value) s/Int})}
+             :parameters {:body schema/update-payment-body}
              :handler (partial update-payment this)}}]]])
 
 (defcomponent http-server

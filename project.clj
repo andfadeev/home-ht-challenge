@@ -4,19 +4,8 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.10.0"]
                  [defcomponent "0.2.2"]
-
                  [metosin/reitit "0.2.13"]
                  [ring/ring-jetty-adapter "1.7.1"]
-
-
-
-
-                 ;[io.pedestal/pedestal.service "0.5.5"]
-                 ;[io.pedestal/pedestal.jetty "0.5.5"]
-                 ;[io.pedestal/pedestal.interceptor "0.5.5"]
-                 ;[io.pedestal/pedestal.route "0.5.5"]
-                 ;[io.pedestal/pedestal.log "0.5.5"]
-                 ;[cheshire "5.8.0"]
                  [com.zaxxer/HikariCP "3.3.0"]
                  [org.clojure/java.jdbc "0.7.8"]
                  [org.postgresql/postgresql "42.2.5"]
@@ -28,13 +17,10 @@
                   :exclusions [org.slf4j/slf4j-api]]
                  [org.slf4j/jul-to-slf4j "1.7.25"]
                  [org.slf4j/jcl-over-slf4j "1.7.25"]
-                 [org.slf4j/log4j-over-slf4j "1.7.25"]
-
-                 ]
+                 [org.slf4j/log4j-over-slf4j "1.7.25"]]
   :resource-paths ["config" "resources"]
   :source-paths ["src"]
   :profiles {:dev {:source-paths ["dev"]
                    :dependencies [[org.clojure/tools.namespace "0.2.11"]]}
              :repl {:repl-options {:init-ns user.my}}}
-
-  :main ^{:skip-aot true} home-ht-challenge.server)
+  :main home-ht-challenge.core)

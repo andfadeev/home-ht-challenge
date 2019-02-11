@@ -9,7 +9,9 @@
 
 (defn query
   [db q]
-  (jdbc/query db (honey/format q)))
+  (-> q
+      (honey/format)
+      (jdbc/query db)))
 
 (defn list-payments
   [db contract-id start-date end-date]
@@ -28,7 +30,7 @@
     (update fields :time #(Timestamp/from %))
     fields))
 
-(defn add-payment
+(defn create-payment
   [db payment]
   (first (jdbc/insert! db :payments (time->sql payment))))
 
