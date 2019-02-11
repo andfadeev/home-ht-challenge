@@ -1,8 +1,8 @@
-FROM java:8-alpine
-MAINTAINER Your Name <you@example.com>
-
-ADD target/home-ht-challenge-0.0.1-SNAPSHOT-standalone.jar /home-ht-challenge/app.jar
-
+FROM clojure:openjdk-11-lein-2.8.3
+RUN mkdir -p /usr/src/app
+WORKDIR /usr/src/app
+COPY project.clj /usr/src/app/
+RUN lein deps
+COPY . /usr/src/app
 EXPOSE 8080
-
-CMD ["java", "-jar", "/home-ht-challenge/app.jar"]
+CMD ["lein", "run"]

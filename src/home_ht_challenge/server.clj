@@ -1,56 +1,126 @@
 (ns home-ht-challenge.server
-  (:gen-class) ; for -main method in uberjar
-  (:require [io.pedestal.http :as server]
-            [io.pedestal.http.route :as route]
-            [home-ht-challenge.service :as service]))
+  (:require [ring.adapter.jetty :as jetty]
+            [muuntaja.middleware]
+            [defcomponent :refer [defcomponent]]
+            [schema.core :as s]
+            [muuntaja.core :as m]
+            [ring.middleware.params :as params]
+            [reitit.ring.middleware.muuntaja :as muuntaja]
+            [reitit.ring.coercion :as coercion]
+            [reitit.coercion.schema :as coercion-schema]
+            [reitit.ring :as ring]
+            [home-ht-challenge
+             [payments :as payments]
+             [db :as db]
+             [schema :as schema]]
+            [camel-snake-kebab.core :refer :all]
+            [camel-snake-kebab.extras :refer [transform-keys]])
+  (:import (java.time Instant)))
 
-;; This is an adapted service map, that can be started and stopped
-;; From the REPL you can call server/start and server/stop on this service
-(defonce runnable-service (server/create-server service/service))
+(defn- response-format
+  [response-body]
+  (transform-keys ->camelCaseKeyword response-body))
 
-(defn run-dev
-  "The entry-point for 'lein run-dev'"
-  [& args]
-  (println "\nCreating your [DEV] server...")
-  (-> service/service ;; start with production configuration
-      (merge {:env :dev
-              ;; do not block thread that starts web server
-              ::server/join? false
-              ;; Routes can be a function that resolve routes,
-              ;;  we can use this to set the routes to be reloadable
-              ::server/routes #(route/expand-routes (deref #'service/routes))
-              ;; all origins are allowed in dev mode
-              ::server/allowed-origins {:creds true :allowed-origins (constantly true)}
-              ;; Content Security Policy (CSP) is mostly turned off in dev mode
-              ::server/secure-headers {:content-security-policy-settings {:object-src "'none'"}}})
-      ;; Wire up interceptor chains
-      server/default-interceptors
-      server/dev-interceptors
-      server/create-server
-      server/start))
+(defn- ok
+  [body]
+  {:status 200
+   :body (response-format body)})
 
-(defn -main
-  "The entry-point for 'lein run'"
-  [& args]
-  (println "\nCreating your server...")
-  (server/start runnable-service))
+(defn- get-payment-id
+  [req]
+  (get-in req [:parameters :path :paymentId]))
 
-;; If you package the service up as a WAR,
-;; some form of the following function sections is required (for io.pedestal.servlet.ClojureVarServlet).
+(defn- get-contract-id
+  [req]
+  (get-in req [:parameters :path :contractId]))
 
-;;(defonce servlet  (atom nil))
-;;
-;;(defn servlet-init
-;;  [_ config]
-;;  ;; Initialize your app here.
-;;  (reset! servlet  (server/servlet-init service/service nil)))
-;;
-;;(defn servlet-service
-;;  [_ request response]
-;;  (server/servlet-service @servlet request response))
-;;
-;;(defn servlet-destroy
-;;  [_]
-;;  (server/servlet-destroy @servlet)
-;;  (reset! servlet nil))
+(defn sum-payments
+  [payments]
+  (apply + (keep :value payments)))
 
+(defn list-payments
+  [{:keys [db]} req]
+  (let [contractId (get-contract-id req)
+        {:keys [startDate endDate]} (get-in req [:parameters :query])]
+    (let [payments (payments/list-payments db contractId startDate endDate)]
+      (ok {:sum (sum-payments payments)
+           :items payments}))))
+
+(defn add-payment
+  [{:keys [db]} req]
+  (let [contractId (get-contract-id req)
+        payment (-> (get-in req [:parameters :body])
+                    (assoc :contract_id contractId))]
+    (ok (payments/add-payment db payment))))
+
+(defn update-payment
+  [{:keys [db]} req]
+  (let [paymentId (get-payment-id req)
+        fields (get-in req [:parameters :body])]
+    (ok (payments/update-payment db paymentId fields))))
+
+(defn delete-payment
+  [{:keys [db]} req]
+  (let [paymentId (get-in req [:parameters :path :paymentId])]
+    (ok (payments/delete-payment db paymentId))))
+
+(defn routes
+  [this]
+  [["/contract/:contractId"
+    {:coercion coercion-schema/coercion
+     :parameters {:path {:contractId s/Int}}}
+    ["/payments"
+     {:responses {200 {:body {:sum s/Int
+                              :items [schema/payment]}}}
+      :get {:summary "List payments for contractId and startDate <= time <= endDate"
+            :parameters {:query {:startDate Instant
+                                 :endDate Instant}}
+            :handler (partial list-payments this)}}]
+    ["/payment"
+     {:responses {200 {:body schema/payment}}
+      :post {:summary "Create new payment"
+             :parameters {:body {:description s/Str
+                                 :time Instant
+                                 :value s/Int}}
+             :handler (partial add-payment this)}}]]
+   ["/payment/:paymentId"
+    {:coercion coercion-schema/coercion
+     :parameters {:path {:paymentId s/Int}}}
+    ["/delete"
+     {:responses {200 {:body schema/payment}}
+      :post {:summary "Mark payment as deleted"
+             :handler (partial delete-payment this)}}]
+    ["/update"
+     {:responses {200 {:body schema/payment}}
+      :post {:summary "Update payment"
+             :parameters {:body
+                          (s/conditional
+                            (complement empty?)
+                            {(s/optional-key :description) s/Str
+                             (s/optional-key :time) Instant
+                             (s/optional-key :value) s/Int})}
+             :handler (partial update-payment this)}}]]])
+
+(defcomponent http-server
+  [db/db]
+  [config]
+  (start
+    [this]
+    (let [opts
+          {:data {:muuntaja m/instance
+                  :middleware [params/wrap-params
+                               muuntaja/format-middleware
+                               coercion/coerce-exceptions-middleware
+                               coercion/coerce-request-middleware
+                               coercion/coerce-response-middleware]}}
+          server
+          (-> (ring/ring-handler
+                (ring/router [(routes this)] opts)
+                (ring/create-default-handler))
+              (jetty/run-jetty {:port 3000
+                                :join? false}))]
+      (assoc this :server server)))
+  (stop
+    [this]
+    (.stop (:server this))
+    this))

@@ -1,0 +1,6 @@
+{:port 8080
+ :db {:host "0.0.0.0"
+      :port "5432"
+      :name "homeht"
+      :user "homeht"
+      :password "homeht"}}
