@@ -7,7 +7,7 @@ To start service backed with postgresql db, run from root of this repo:
 docker-compose up -d
 ```
 
-Db schema in `init.sql` with predefined contracts.
+Db schema is in `init.sql` with predefined contracts.
 
 ## Test
 
@@ -68,7 +68,7 @@ Update payment:
 curl -X POST \
   http://localhost:8080/payment/2/update \
   -H 'Cache-Control: no-cache' \
-  -H 'Content-Type: application/json'
+  -H 'Content-Type: application/json' \
   -d '{
 	"time": "2016-12-10T00:00:00.00Z",
 	"description": "More rent to be paid",
