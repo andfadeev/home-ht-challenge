@@ -17,5 +17,5 @@
          (->> (HikariDataSource. (make-config (:db config)))
               (assoc this :datasource)))
   (stop [this]
-        (.close (:datasource pool))
+        (.close (:datasource this))
         this))

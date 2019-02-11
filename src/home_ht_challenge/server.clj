@@ -113,7 +113,7 @@
           (-> (ring/ring-handler
                 (ring/router [(routes this)] opts)
                 (ring/create-default-handler))
-              (jetty/run-jetty {:port 3000
+              (jetty/run-jetty {:port (:port config)
                                 :join? false}))]
       (assoc this :server server)))
   (stop

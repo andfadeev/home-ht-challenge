@@ -9,9 +9,9 @@
 
 (defn query
   [db q]
-  (-> q
-      (honey/format)
-      (jdbc/query db)))
+  (->> q
+       (honey/format)
+       (jdbc/query db)))
 
 (defn list-payments
   [db contract-id start-date end-date]
